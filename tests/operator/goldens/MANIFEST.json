@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "abi": "wilson_dirac_v1",
+  "description": "Immutable golden corpus — constitution of metafield-work. Inputs AND outputs.",
+  "suites": [
+    {
+      "path": "L2/cold/golden.json",
+      "L": 2,
+      "kind": "cold",
+      "seed_base": 1001
+    },
+    {
+      "path": "L2/random/golden.json",
+      "L": 2,
+      "kind": "random",
+      "seed_base": 1002
+    },
+    {
+      "path": "L2/boundary/golden.json",
+      "L": 2,
+      "kind": "boundary",
+      "seed_base": 1003
+    },
+    {
+      "path": "L4/cold/golden.json",
+      "L": 4,
+      "kind": "cold",
+      "seed_base": 2001
+    },
+    {
+      "path": "L4/random/golden.json",
+      "L": 4,
+      "kind": "random",
+      "seed_base": 2002
+    },
+    {
+      "path": "L4/boundary/golden.json",
+      "L": 4,
+      "kind": "boundary",
+      "seed_base": 2003
+    }
+  ]
+}

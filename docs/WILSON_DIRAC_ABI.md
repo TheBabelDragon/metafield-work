@@ -1,10 +1,16 @@
-# Wilson–Dirac operator ABI (hard freeze)
+# Wilson–Dirac ABI v1 — IMMUTABLE
+
+**Status: FROZEN.**  
+Changes require a new ABI version (`v2`), new goldens, and an explicit migration note.
+This is the first operator in the MetaField operator language — not the whole language.
 
 Treat this as a **mathematical ABI**. Backends that disagree on any frozen
 convention produce a spectacularly convincing wrong simulation.
 
-Canonical reference: `TheBabelDragon/metafield` → `meta_field_sim_torch.py`
-(`WilsonDiracOperator`).
+Canonical oracle: `backends/reference/torch_backend.py`  
+(aligned with `TheBabelDragon/metafield` → `meta_field_sim_torch.py`).
+
+Constitutional tests: `tests/operator/goldens/` + `tests/operator/test_goldens.py`.
 
 ---
 
@@ -18,9 +24,9 @@ Canonical reference: `TheBabelDragon/metafield` → `meta_field_sim_torch.py`
            ]
 ```
 
-| Symbol | Meaning | Default / freeze |
-|--------|---------|------------------|
-| `m` | bare mass | config (ref: 0.1) |
+| Symbol | Meaning | Freeze |
+|--------|---------|--------|
+| `m` | bare mass | parameter (oracle default 0.1) |
 | `r` | Wilson parameter | **1.0** standard |
 | `n_dims` | spacetime dims | **4** |
 | `γ_μ` | Euclidean gamma | Degrand–DeTar (below) |
@@ -61,24 +67,23 @@ OUT:
 
 ### Lattice indexing
 
-- Axes `0 .. n_dims-1` correspond to μ = 0 .. n_dims−1.
-- Sites are a dense hypercube of extent `L` per axis (rectangular later; not required for v1).
+- Axes `0 .. n_dims-1` ↔ μ = 0 .. n_dims−1.
+- Dense hypercube extent `L` per axis (v1).
 - `shift(f, μ, +1)(x) = f(x + e_μ)`
 - `shift(f, μ, −1)(x) = f(x − e_μ)`
-- Periodic BC default (other BC must be explicit in `BoundaryCondition`).
+- Periodic BC default.
 
 ### Gauge links
 
-- Layout: `U[x, μ, a, b]` with `a,b` color indices.
-- `U_μ(x)` parallel-transports **from** `x+μ` **to** `x` in the forward hop
-  (matches reference `einsum('...ij,...sj->...si', U_mu, psi_fwd)`).
-- Backward hop uses `U_μ(x−μ)†`.
+- Layout: `U[x, μ, a, b]` color indices last.
+- Forward hop: `U_μ(x)` transports ψ(x+μ) → x.
+- Backward hop: `U_μ(x−μ)†`.
 
-### Spin / color ordering
+### Spin / color
 
-- Spinor dim = **4** (Euclidean Dirac).
+- Spinor dim = **4**.
 - Color dim = **N** (default 3).
-- Field layout: `ψ[x, spin, color]` — spin **before** color.
+- Layout: `ψ[x, spin, color]` — spin **before** color.
 
 ### Gamma matrices (Degrand–DeTar Euclidean)
 
@@ -92,51 +97,50 @@ Hermitian, `{γ_μ, γ_ν} = 2 δ_{μν} I`.
 γ5 = γ1 γ2 γ3 γ4
 ```
 
-Direction order in the sum is μ = 0,1,2,3 ↔ γ1..γ4 as above.
+μ = 0..3 ↔ γ1..γ4 in that order.
 
 ### Complex representation
 
-- Interleaved or planar is a **backend choice**.
-- ABI tests compare against reference in a canonical planar form:
-  `real/imag` separated only at the boundary if needed.
-- Reference storage: native complex (`complex128` default).
-
-### Precision semantics
-
-- Equivalence tolerances are **explicit** per precision policy (see tests).
-- Default reference: `complex128` throughout.
-- Mixed-precision backends must still pass residual gates on `Q`-solves within
-  published bounds.
+- Interleaved vs planar is a **backend choice** (experimental transport).
+- Goldens compare in canonical complex planar form from the oracle.
+- Default storage: complex128.
 
 ### Reductions
 
 ```text
-⟨a,b⟩ = Σ conj(a) · b     (Hermitian inner product, real part taken where required)
+⟨a,b⟩ = Σ conj(a) · b
 ‖a‖   = √⟨a,a⟩
 ```
 
 ---
 
-## Golden vectors
+## Golden suite requirements (constitution)
 
-Every backend must reproduce reference outputs for fixed seeds:
+Every backend claiming Wilson–Dirac ABI v1 compliance must pass:
 
-| Suite | Content |
-|-------|---------|
-| `D_on_noise` | random ψ, cold/hot U → `Dψ` |
-| `Ddag_identity` | `‖D†ψ − γ₅ D γ₅ ψ‖ < tol` |
-| `Q_hermitian` | `⟨φ, Qψ⟩ ≈ ⟨Qφ, ψ⟩` |
-| `CG_path` | fixed RHS, same `Q`, residual history |
+| Check | What |
+|-------|------|
+| `Dψ` | relative error vs oracle output |
+| γ₅-hermiticity | `‖D†ψ − γ₅ D γ₅ ψ‖` |
+| `D†D` hermiticity | `⟨φ,Qψ⟩ ≈ ⟨Qφ,ψ⟩` |
+| `Qψ` | relative error vs oracle |
+| CG trajectory | residual history on fixed RHS |
+| cold / random / boundary | L=2 and L=4 suites |
 
-Tolerance tables live under `tests/operator/tolerances.json`.
+Inputs **and** outputs are stored under `tests/operator/goldens/`.
 
 ---
 
-## Non-goals of this ABI
+## Explicitly not frozen here
 
-- RHMC / fractional powers
-- Clover improvement
-- Domain wall / overlap
-- Multi-grid preconditioners
+- Backend method names (`OperatorBackend` is provisional software glue)
+- DMA, device handles, streaming, batching
+- FPGA/ASIC transport
+- Plaquette / gauge-force (future ABIs in the same operator language)
 
-Those are later operators with their own contracts.
+---
+
+## Non-goals of v1
+
+RHMC · clover · domain wall / overlap · multi-grid preconditioners  
+→ later operators, separate ABIs.

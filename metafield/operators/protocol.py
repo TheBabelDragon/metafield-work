@@ -1,7 +1,12 @@
-"""Layer 1–2 — mathematical operator contract + backend interface.
+"""Layer 1–2 — mathematical operators + *provisional* backend surface.
 
-Physics and algorithms depend on this module only.
-Backends implement OperatorBackend. They do not redefine Wilson–Dirac.
+Wilson–Dirac ABI v1 is IMMUTABLE (docs/WILSON_DIRAC_ABI.md).
+This Protocol is EXPERIMENTAL software glue — method names, handles, and
+sync semantics may change as the first FPGA implementation teaches us
+what the operator actually wants from hardware.
+
+Physics should depend on the mathematical meaning and the golden corpus,
+not on this surface being eternal.
 """
 
 from __future__ import annotations
@@ -22,7 +27,11 @@ class WilsonParams:
 
 @runtime_checkable
 class OperatorBackend(Protocol):
-    """Plug-and-play executor. All methods are pure math operators."""
+    """Provisional executor surface. Not a frozen hardware ABI.
+
+    Implement enough to pass tests/operator/goldens/. Prefer matching
+    the oracle on wilson_dirac first; everything else is secondary.
+    """
 
     name: str
 
@@ -31,7 +40,7 @@ class OperatorBackend(Protocol):
         ...
 
     def wilson_dirac_dagger(self, psi: Any, U: Any, params: WilsonParams) -> Any:
-        """Return D_W† ψ. Reference uses γ₅ D γ₅."""
+        """Return D_W† ψ. Oracle uses γ₅ D γ₅."""
         ...
 
     def normal_operator(self, psi: Any, U: Any, params: WilsonParams) -> Any:
@@ -39,15 +48,15 @@ class OperatorBackend(Protocol):
         ...
 
     def plaquette_action(self, U: Any, beta: float) -> Any:
-        """Scalar Wilson gauge action."""
+        """Scalar Wilson gauge action (not yet a frozen ABI)."""
         ...
 
     def gauge_force(self, U: Any, beta: float) -> Any:
-        """su(N)-valued force from Wilson action."""
+        """su(N)-valued force (not yet a frozen ABI)."""
         ...
 
     def complex_dot(self, a: Any, b: Any) -> Any:
-        """Hermitian inner product ⟨a,b⟩ = Σ conj(a)·b (complex scalar)."""
+        """Hermitian inner product ⟨a,b⟩ = Σ conj(a)·b."""
         ...
 
     def complex_norm(self, a: Any) -> Any:
@@ -55,14 +64,12 @@ class OperatorBackend(Protocol):
         ...
 
     def synchronize(self) -> None:
-        """Device barrier (no-op on CPU)."""
+        """Device barrier (no-op on CPU). Mechanism is experimental."""
         ...
 
 
 @dataclass
 class OperatorContext:
-    """Geometry + precision shared by a simulation handle."""
-
     geometry: LatticeGeometry
     boundary: BoundaryCondition
     precision: PrecisionPolicy
