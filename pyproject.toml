@@ -1,0 +1,13 @@
+[project]
+name = "metafield-work"
+version = "0.1.0"
+description = "MetaField operator isolation — mathematics defines operators; backends implement them."
+requires-python = ">=3.10"
+dependencies = ["torch>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
