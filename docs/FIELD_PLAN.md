@@ -1,73 +1,57 @@
-# Field plan — ASIC / FPGA isolation path
+# Field plan — stop expanding, pass the goldens
 
 ## North star
 
-Ship a path:
-
 ```text
-PyTorch lattice sim  →  Zynq/Arty accelerator  →  repurposed silicon  →  purpose-built MetaField ASIC
+PyTorch lattice sim → Zynq/Arty accelerator → repurposed silicon → purpose-built ASIC
 ```
 
-without rewriting the physics at each step.
+without rewriting the physics.
 
----
+## What is locked now
 
-## Phase A — Contract (now)
+1. **Wilson–Dirac ABI v1** — immutable mathematical contract  
+2. **Golden corpus** — L2/L4 × cold/random/boundary with inputs *and* outputs  
+3. **Operator language framing** — Wilson–Dirac is the first instruction, not the only one  
+4. **Empty FPGA/ASIC slots** — no speculative hardware API  
 
-- [x] Architecture freeze document
-- [x] Wilson–Dirac ABI freeze
-- [x] `OperatorBackend` protocol in-repo
-- [x] Reference backend scaffold + equivalence test harness
-- [ ] Golden vectors committed for L=2 and L=4 (seed-locked)
+## What is deliberately not locked
 
-## Phase B — Software isolation
+`OperatorBackend` surface · DMA · memory ownership · sync · batching · transport.
 
-- [ ] Extract pure operator calls out of monolithic `meta_field_sim_torch.py`
-      into `metafield/operators/*` (this repo) while metafield remains oracle
-- [ ] CG only talks to `OperatorBackend.normal_operator`
-- [ ] HMC force path uses `gauge_force` + fermion force via same interface
+The first FPGA implementation answers: *what does Wilson–Dirac actually want from hardware?*  
+That answer designs the accelerator interface — not the reverse.
 
-## Phase C — CG on device
+## Phases
 
-First **hardware** milestone is not HMC.
+### A — Constitution (now)
 
-1. Host sends ψ, U (or streams tiles)
-2. Device returns `Dψ`
-3. Host runs CG using device matvecs
-4. Residuals match reference within tolerance
+- [x] Wilson–Dirac ABI v1 frozen
+- [x] Golden corpus committed
+- [x] Reference replay tests
+- [x] Backend surface marked provisional
 
-Exposes: throughput, bandwidth, complex arithmetic, reductions, stability, sync.
+### B — First FPGA (next)
 
-## Phase D — Host-composed HMC
+- [ ] Implement only `wilson_dirac` on device
+- [ ] Pass L2 goldens, then L4
+- [ ] No HMC, no clever API
 
-```text
-plaquette → gauge action → D_W → CG → force → leapfrog → Metropolis
-```
+### C — Q and CG
 
-Host remains conductor. Accelerator is the orchestra.
+- [ ] `D†D` on device or host-composed
+- [ ] CG residual trajectory within tolerance
+- [ ] Measure bandwidth vs arithmetic bottleneck
 
-## Phase E — Optional device orchestration
+### D — Host-composed HMC
 
-Only after C+D are boringly correct: pack multi-matvec sequences, on-device
-leapfrog fragments, multi-card domain decomposition.
+Host remains conductor. Device is orchestra.
 
----
+### E — ASIC only after measurement
 
-## Repo boundary vs `metafield`
+Choose candidates from measured primitives, not speculation.
 
-| Repo | Role |
-|------|------|
-| `metafield` | Living sim, physical bodies, FO schemas, Aurora mods |
-| `metafield-work` | Operator isolation, ABI, backends, hardware benches |
+## Review rule
 
-Do not let FPGA code import FO / optical stubs. Do not let operator math import
-bitstreams.
-
----
-
-## Review checklist (every PR that touches operators)
-
-1. Does this change the **math** or only an **implementation**?
-2. If math: update ABI doc + golden vectors in the same PR.
-3. Does any algorithm import a backend symbol? (reject)
-4. New backend: passes `tests/backend_equivalence` against reference.
+PRs that touch operator **math** must update ABI version + goldens together.  
+PRs that only touch backend transport should not claim ABI changes.

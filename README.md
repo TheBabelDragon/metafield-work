@@ -2,77 +2,68 @@
 
 **MetaField defines the mathematics. Backends implement the operators.**
 
-Work repo for isolating lattice operators (Wilson–Dirac first) so CPU / CUDA /
-FPGA / ASIC can plug in without redefining the physics.
-
-The existing PyTorch simulation in [`TheBabelDragon/metafield`](https://github.com/TheBabelDragon/metafield)
-(`meta_field_sim_torch.py`) is the **reference oracle**. This repo hardens the
-contract around it.
+Wilson–Dirac is the **first frozen instruction** in the MetaField operator language —
+not the whole language, and not a frozen hardware API.
 
 ```
-                  METAFIELD
-                     │
-              mathematical truth
-                     │
-             ┌───────▼───────┐
-             │   OPERATORS   │
-             │ Wilson–Dirac  │
-             │ Plaquette     │
-             │ Force         │
-             │ Reduction     │
-             └───────┬───────┘
-                     │
-              stable contract
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-      CPU          FPGA          ASIC
+MetaField Operator ABI family
+│
+├── Wilson–Dirac ABI v1     ← IMMUTABLE
+├── Reduction ABI           ← later
+├── Plaquette ABI           ← later
+└── Gauge-force ABI         ← later
 ```
 
-## Hard freezes
+## Constitution
 
-| # | Freeze |
-|---|--------|
-| 1 | Wilson–Dirac mathematical convention (see `docs/WILSON_DIRAC_ABI.md`) |
-| 2 | Field memory / indexing semantics |
-| 3 | Backend / operator separation — physics never imports silicon details |
-| 4 | PyTorch reference backend as permanent correctness oracle |
-| 5 | Operator-level hardware interface (not `RUN_HMC`) |
-| 6 | Precision policy (storage / compute / accumulate) |
-| 7 | Golden-vector equivalence tests for every backend |
+`tests/operator/goldens/` is the law.
 
-## Keep experimental
+| Suite | Content |
+|-------|---------|
+| L2/L4 × cold/random/boundary | **inputs + outputs** |
+| checks | Dψ · γ₅-hermiticity · Q-hermiticity · Qψ · CG trajectory |
 
-FPGA microarchitecture · fixed vs float · ASIC candidate · PCIe/DMA · PE count ·
-lattice size · distributed topology · CAN · custom silicon.
+```bash
+pip install -r requirements.txt
+PYTHONPATH=. python -m pytest tests/operator -q
+```
+
+Regenerate goldens only when intentionally changing the oracle:
+
+```bash
+PYTHONPATH=. python scripts/generate_goldens.py
+```
+
+## Frozen vs experimental
+
+**Frozen:** Wilson form, Degrand–DeTar γ, layouts, indexing, shifts, γ₅-hermiticity,
+`Q=D†D`, precision semantics, golden corpus.
+
+**Experimental:** `OperatorBackend` method names, DMA, device handles, sync, batching,
+FPGA/ASIC transport.
+
+See `docs/OPERATOR_LANGUAGE.md` and `docs/WILSON_DIRAC_ABI.md`.
+
+## Progression
+
+```
+PyTorch oracle → golden corpus → (provisional software contract)
+  → FPGA D_W → FPGA Q → CG → measure bottleneck
+  → specialized datapath → only then ASIC candidates
+```
+
+`backends/fpga` and `backends/asic` stay empty until a boring implementation
+passes the goldens. That is intentional.
 
 ## Layout
 
 ```
-metafield/          # pure math + algorithms (no device imports upward)
-backends/           # reference · cuda · fpga · asic stubs
-hardware/           # bitstreams, interfaces (later)
-tests/              # operator · equivalence · numerical · regression
-benchmarks/         # CG first, then HMC
-docs/               # architecture + ABI
+metafield/     pure math + algorithms
+backends/      reference oracle · empty fpga/asic slots
+tests/         operator + goldens (constitution)
+scripts/       generate_goldens.py
+docs/          ABI + field plan
 ```
 
-## Quick start
-
-```bash
-pip install torch   # reference backend
-python -m pytest tests/operator -q
-```
-
-Point `METAFIELD_ORACLE` at a checkout of `TheBabelDragon/metafield` if you want
-the live `WilsonDiracOperator` as the oracle (optional; a self-contained
-reference is included).
-
-## Milestones
-
-1. **Operator ABI frozen** ← you are here
-2. Golden vectors for `D_W ψ` on small lattices
-3. CG against reference on same vectors
-4. FPGA backend implements `wilson_dirac` only
-5. Equivalence gates green
-6. Host-composed HMC (still software orchestration)
+Oracle lineage: [`TheBabelDragon/metafield`](https://github.com/TheBabelDragon/metafield)
+`meta_field_sim_torch.py`.
