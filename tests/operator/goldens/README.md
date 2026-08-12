@@ -1,30 +1,19 @@
-# Golden corpus (constitution)
+# Golden corpus — constitution of metafield-work
 
-**Wilson–Dirac ABI v1** inputs **and** outputs live here after generation.
+**Wilson–Dirac ABI v1** compliance boundary.
+
+Each suite directory contains:
+
+| File | Role |
+|------|------|
+| `golden.meta.json` | params, seeds, metrics (γ₅, Q-hermiticity, CG trajectory) |
+| `golden.npz.b64` | base64 of compressed NPZ: inputs ψ,U,η,φ + outputs Dψ, D†ψ, Qψ, cg_x |
 
 ```bash
-PYTHONPATH=. python scripts/generate_goldens.py
+PYTHONPATH=. python scripts/generate_goldens.py   # regenerate from oracle
+PYTHONPATH=. python -m pytest tests/operator -q
 ```
 
-Produces:
+A backend is compliant iff it reproduces outputs within `tolerances.json` for all suites.
 
-```
-L2/{cold,random,boundary}/golden.json
-L4/{cold,random,boundary}/golden.json
-MANIFEST.json
-```
-
-Each file stores ψ, U, η, φ **and** Dψ, D†ψ, Qψ, CG trajectory metrics.
-
-Frozen seeds (do not change without ABI bump):
-
-| L | kind | seed |
-|---|------|------|
-| 2 | cold | 1001 |
-| 2 | random | 1002 |
-| 2 | boundary | 1003 |
-| 4 | cold | 2001 |
-| 4 | random | 2002 |
-| 4 | boundary | 2003 |
-
-Commit the generated tree before a non-reference backend claims compliance.
+Internal FPGA architecture is irrelevant to MetaField.
