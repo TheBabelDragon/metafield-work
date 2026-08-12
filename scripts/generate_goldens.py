@@ -6,6 +6,7 @@ Seeds below are frozen. Re-run only when intentionally bumping the oracle;
 commit inputs+outputs together.
 
   PYTHONPATH=. python scripts/generate_goldens.py
+  git add tests/operator/goldens && git commit
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -147,7 +149,22 @@ def suite_for(L: int, kind: str, seed_base: int) -> None:
     S = be.plaquette_action(U, BETA)
     out_dir = GOLDEN_ROOT / f"L{L}" / kind
     out_dir.mkdir(parents=True, exist_ok=True)
-    payload = {
+
+    def to_np(t: torch.Tensor) -> np.ndarray:
+        return t.detach().cpu().numpy()
+
+    arrays = {
+        "inputs__psi": to_np(psi),
+        "inputs__U": to_np(U),
+        "inputs__eta": to_np(eta),
+        "inputs__phi": to_np(phi),
+        "outputs__Dpsi": to_np(Dpsi),
+        "outputs__Ddag_psi": to_np(Ddag),
+        "outputs__Qpsi": to_np(Qpsi),
+        "outputs__cg_x": to_np(x),
+    }
+    np.savez_compressed(out_dir / "golden.npz", **arrays)
+    meta = {
         "schema_version": 1,
         "abi": "wilson_dirac_v1",
         "L": L,
@@ -161,13 +178,6 @@ def suite_for(L: int, kind: str, seed_base: int) -> None:
             "n_dims": 4,
             "beta": BETA,
         },
-        "inputs": {"psi": pack(psi), "U": pack(U), "eta": pack(eta), "phi": pack(phi)},
-        "outputs": {
-            "Dpsi": pack(Dpsi),
-            "Ddag_psi": pack(Ddag),
-            "Qpsi": pack(Qpsi),
-            "cg_x": pack(x),
-        },
         "metrics": {
             "g5_hermiticity_err": g5_err,
             "Q_hermiticity_err": q_herm_err,
@@ -178,10 +188,13 @@ def suite_for(L: int, kind: str, seed_base: int) -> None:
             "norm_Dpsi": float(be.complex_norm(Dpsi)),
             "norm_psi": float(be.complex_norm(psi)),
         },
+        "arrays": sorted(arrays.keys()),
     }
-    path = out_dir / "golden.json"
-    path.write_text(json.dumps(payload))
-    print(f"wrote {path.relative_to(ROOT)}")
+    (out_dir / "golden.meta.json").write_text(json.dumps(meta, indent=2))
+    legacy = out_dir / "golden.json"
+    if legacy.exists():
+        legacy.unlink()
+    print(f"wrote {out_dir.relative_to(ROOT)}/golden.npz + golden.meta.json")
 
 
 def main() -> None:
@@ -190,10 +203,11 @@ def main() -> None:
     manifest = {
         "schema_version": 1,
         "abi": "wilson_dirac_v1",
+        "format": "npz+meta",
         "description": "Immutable golden corpus — constitution of metafield-work.",
         "suites": [
             {
-                "path": f"L{L}/{kind}/golden.json",
+                "path": f"L{L}/{kind}",
                 "L": L,
                 "kind": kind,
                 "seed_base": SEEDS[(L, kind)],
