@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.DS_Store
+
+# Local regenerated tensors (commit deliberately after generate_goldens)
+# Keep *.meta.json and MANIFEST tracked; npz is optional until you choose to commit it.
+# Uncomment next line to ignore local npz during experimentation:
+# tests/operator/goldens/**/golden.npz
+tests/operator/goldens/**/golden.npz.b64
+tests/operator/goldens/*.zip
+tests/operator/goldens/*.zip.b64
