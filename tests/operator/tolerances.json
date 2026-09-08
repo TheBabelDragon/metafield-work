@@ -5,12 +5,32 @@
     "D_on_noise_rel": 1e-12,
     "Ddag_identity_abs": 1e-10,
     "Q_hermitian_abs": 1e-8,
-    "CG_final_resid": 1e-7
+    "CG_final_resid": 1e-7,
+    "reduction_dot_abs": 1e-10,
+    "reduction_norm_abs": 1e-10,
+    "reduction_axpy_abs": 1e-12,
+    "reduction_axpy_rel": 1e-12,
+    "plaquette_action_abs": 1e-10,
+    "mean_plaquette_abs": 1e-12,
+    "gauge_force_rel": 1e-11,
+    "gauge_force_ah_abs": 1e-12,
+    "gauge_force_tr_abs": 1e-12,
+    "gauge_force_cold_abs": 1e-12
   },
   "complex64": {
     "D_on_noise_rel": 1e-5,
     "Ddag_identity_abs": 1e-4,
     "Q_hermitian_abs": 1e-4,
-    "CG_final_resid": 1e-4
+    "CG_final_resid": 1e-4,
+    "reduction_dot_abs": 1e-4,
+    "reduction_norm_abs": 1e-4,
+    "reduction_axpy_abs": 1e-5,
+    "reduction_axpy_rel": 1e-5,
+    "plaquette_action_abs": 1e-4,
+    "mean_plaquette_abs": 1e-5,
+    "gauge_force_rel": 1e-4,
+    "gauge_force_ah_abs": 1e-4,
+    "gauge_force_tr_abs": 1e-4,
+    "gauge_force_cold_abs": 1e-5
   }
 }
