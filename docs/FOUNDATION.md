@@ -1,4 +1,4 @@
-# Foundation lock — Wilson–Dirac ABI v1
+# Foundation lock — operator ABI family v1
 
 ```
                  MetaField
@@ -9,9 +9,9 @@
         │ Operator ABI family   │
         │                       │
         │ Wilson–Dirac v1  🔒   │
-        │ Reduction        …    │
-        │ Plaquette        …    │
-        │ Gauge force      …    │
+        │ Reduction v1     🔒   │
+        │ Plaquette v1     🔒   │
+        │ Gauge force v1   🔒   │
         └───────────┬───────────┘
                     │
              provisional glue
@@ -24,9 +24,9 @@
 
 ## What is locked
 
-- Mathematical meaning of Wilson–Dirac
+- Mathematical meaning of Wilson–Dirac, reductions, Wilson plaquette, gauge force
 - Golden corpus requirements (inputs **and** outputs)
-- Seed table
+- Seed table (shared across the family)
 - Tolerance gates
 - PyTorch as oracle
 
@@ -41,9 +41,9 @@ Once it passes, MetaField does not care how.
 
 ## Explicit non-goals until after first device pass
 
-- More architecture documents
 - ASIC selection
 - HMC on device
 - Clever backend APIs
+- Clover / Symanzik / fermion force ABIs
 
-**Implement `wilson_dirac` only. Pass L2. Profile. Then decide.**
+**Implement the frozen operators. Pass L2. Profile. Then decide.**

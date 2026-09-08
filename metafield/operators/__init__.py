@@ -1,3 +1,3 @@
-from .protocol import OperatorBackend, WilsonParams
+from .protocol import GaugeParams, OperatorBackend, WilsonParams
 
-__all__ = ["OperatorBackend", "WilsonParams"]
+__all__ = ["GaugeParams", "OperatorBackend", "WilsonParams"]
