@@ -6,6 +6,10 @@ Conventions locked to TheBabelDragon/metafield meta_field_sim_torch.py:
   - ψ layout: lattice + (spin, color)
   - U layout: lattice + (μ, color, color)
   - shift(f, μ, +1)(x) = f(x+e_μ)
+
+Gauge operators follow Plaquette ABI v1 and Gauge-force ABI v1:
+  S_G = β Σ_{μ<ν} (1 − ReTr P / N)
+  F   = −(β/N) proj_su(N)(U V)   with V the staple sum
 """
 
 from __future__ import annotations
@@ -49,6 +53,15 @@ def dagger(M: torch.Tensor) -> torch.Tensor:
     return M.conj().transpose(-1, -2)
 
 
+def project_sun_algebra(M: torch.Tensor) -> torch.Tensor:
+    """Traceless anti-Hermitian projection (su(N) algebra element)."""
+    n = M.shape[-1]
+    A = 0.5 * (M - dagger(M))
+    tr = torch.diagonal(A, dim1=-2, dim2=-1).sum(-1)
+    eye = torch.eye(n, dtype=M.dtype, device=M.device)
+    return A - (tr / n)[..., None, None] * eye
+
+
 class TorchReferenceBackend:
     name = "reference"
 
@@ -65,7 +78,6 @@ class TorchReferenceBackend:
         self.gammas = euclidean_gamma_matrices(self.dtype, self.device)
         self.g5 = gamma5(self.gammas)
         eye4 = torch.eye(4, dtype=self.dtype, device=self.device)
-        # wilson_r is applied at call time; keep unit templates
         self._eye4 = eye4
 
     def _shift(self, field: torch.Tensor, axis: int, direction: int) -> torch.Tensor:
@@ -101,7 +113,8 @@ class TorchReferenceBackend:
     def normal_operator(self, psi: Any, U: Any, params: WilsonParams) -> Any:
         return self.wilson_dirac_dagger(self.wilson_dirac(psi, U, params), U, params)
 
-    def plaquette_action(self, U: Any, beta: float) -> Any:
+    def _plaquettes(self, U: Any) -> torch.Tensor:
+        """ReTr(P)/N for every site and every μ<ν plane. Shape: lattice + (n_planes,)."""
         U_t = torch.as_tensor(U, dtype=self.dtype, device=self.device)
         n = U_t.shape[-1]
         traces = []
@@ -114,21 +127,52 @@ class TorchReferenceBackend:
                 plaq = U_mu @ U_nu_xpm @ dagger(U_mu_xpn) @ dagger(U_nu)
                 tr = torch.diagonal(plaq, dim1=-2, dim2=-1).sum(-1).real / n
                 traces.append(tr)
-        stacked = torch.stack(traces, dim=-1)
+        return torch.stack(traces, dim=-1)
+
+    def plaquette_action(self, U: Any, beta: float) -> Any:
+        stacked = self._plaquettes(U)
         return float(beta) * torch.sum(1.0 - stacked)
 
+    def mean_plaquette(self, U: Any) -> Any:
+        stacked = self._plaquettes(U)
+        return torch.mean(stacked)
+
+    def staples(self, U: Any) -> torch.Tensor:
+        """V_μ(x) staple sum. Same layout as U."""
+        U_t = torch.as_tensor(U, dtype=self.dtype, device=self.device)
+        n_dims = self.geometry.n_dims
+        V = torch.zeros_like(U_t)
+        for mu in range(n_dims):
+            U_mu = U_t[..., mu, :, :]
+            acc = torch.zeros_like(U_mu)
+            for nu in range(n_dims):
+                if nu == mu:
+                    continue
+                U_nu = U_t[..., nu, :, :]
+                U_nu_xpm = self._shift(U_nu, mu, +1)
+                U_mu_xpn = self._shift(U_mu, nu, +1)
+                fwd = U_nu_xpm @ dagger(U_mu_xpn) @ dagger(U_nu)
+                U_nu_xmn = self._shift(U_nu, nu, -1)
+                U_mu_xmn = self._shift(U_mu, nu, -1)
+                U_nu_xmn_xpm = self._shift(U_nu_xmn, mu, +1)
+                back = dagger(U_nu_xmn_xpm) @ dagger(U_mu_xmn) @ U_nu_xmn
+                acc = acc + fwd + back
+            V[..., mu, :, :] = acc
+        return V
+
     def gauge_force(self, U: Any, beta: float) -> Any:
-        # Force via autograd on Wilson action — oracle path; silicon may use staples.
+        U_t = torch.as_tensor(U, dtype=self.dtype, device=self.device)
+        n = U_t.shape[-1]
+        V = self.staples(U_t)
+        return -(float(beta) / n) * project_sun_algebra(U_t @ V)
+
+    def gauge_force_autograd(self, U: Any, beta: float) -> Any:
+        """Oracle cross-check only. Not part of the hardware ABI."""
         U_t = torch.as_tensor(U, dtype=self.dtype, device=self.device).detach().clone().requires_grad_(True)
         S = self.plaquette_action(U_t, beta)
         (grad,) = torch.autograd.grad(S, U_t)
         raw = U_t.detach() @ dagger(grad.detach())
-        # project traceless anti-Hermitian
-        n = raw.shape[-1]
-        A = 0.5 * (raw - dagger(raw))
-        tr = torch.diagonal(A, dim1=-2, dim2=-1).sum(-1)
-        eye = torch.eye(n, dtype=raw.dtype, device=raw.device)
-        return A - (tr / n)[..., None, None] * eye
+        return project_sun_algebra(raw)
 
     def complex_dot(self, a: Any, b: Any) -> Any:
         a_t = torch.as_tensor(a, dtype=self.dtype, device=self.device)
@@ -139,10 +183,13 @@ class TorchReferenceBackend:
         d = self.complex_dot(a, a)
         return torch.sqrt(d.real.clamp_min(0.0))
 
+    def axpy(self, alpha: Any, x: Any, y: Any) -> Any:
+        x_t = torch.as_tensor(x, dtype=self.dtype, device=self.device)
+        y_t = torch.as_tensor(y, dtype=self.dtype, device=self.device)
+        return complex(alpha) * x_t + y_t
+
     def synchronize(self) -> None:
         return
-
-    # --- helpers for tests / seeding ---
 
     def random_fermion(self, params: WilsonParams, generator: torch.Generator | None = None) -> torch.Tensor:
         shape = self.geometry.shape + (params.spinor_dim, params.color_dim)
