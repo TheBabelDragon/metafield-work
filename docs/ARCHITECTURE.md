@@ -7,6 +7,10 @@
 The Wilson–Dirac operator is the first stable plug-and-play contract.
 FPGA and ASIC layers implement it. They do not redefine it.
 
+The Duck is not a backend. It does not implement operators. It proposes
+claims about whatever body it is inhabiting, and a verifier that the Duck
+does not own decides whether those claims live. See [`DUCK.md`](DUCK.md).
+
 ---
 
 ## System diagram
@@ -16,20 +20,29 @@ FPGA and ASIC layers implement it. They do not redefine it.
                     │       MetaField Model      │
                     │ Gauge · Fermion · HMC      │
                     │ Observables · BC           │
-                    └─────────────┬─────────────┘
+                    └────────────┬─────────────┘
                                   │ Physics API
-                    ┌─────────────▼─────────────┐
+                    ┌────────────┴─────────────┐
                     │     Operator Interface     │
                     │ D_W · D†D · Plaquette      │
                     │ Gauge force · Dot · Norm   │
-                    └─────────────┬─────────────┘
+                    └────────────┬─────────────┘
                                   │ Backend dispatcher
-              ┌───────────────────┼──────────────────┐
-        ┌─────▼─────┐       ┌─────▼─────┐      ┌─────▼─────┐
+              ┌──────────────────┼──────────────────┐
+        ┌─────┴─────┐       ┌─────┴─────┐      ┌─────┴─────┐
         │ PyTorch   │       │ FPGA      │      │ ASIC      │
         │ Reference │       │ Backend   │      │ Backend   │
         └───────────┘       └───────────┘      └───────────┘
+                                  │
+                    ┌────────────┴─────────────┐
+                    │   Duck (experimental)     │
+                    │ observe · conjecture      │
+                    │ experiment · proof draft  │
+                    │ checker · attacker        │
+                    └───────────────────────────┘
 ```
+
+The Duck may request an operator the way CG does. It may not add one.
 
 ---
 
@@ -54,7 +67,7 @@ These define **what MetaField means**:
 | Operator | Meaning |
 |----------|---------|
 | `wilson_dirac(ψ, U)` | `D_W ψ` |
-| `wilson_dirac_dagger(ψ, U)` | `D_W† ψ` (= γ₅ D γ₅ for Wilson) |
+| `wilson_dirac_dagger(ψ, U)` | `D_W† ψ` (= γ5 D γ5 for Wilson) |
 | `normal_operator(ψ, U)` | `D† D ψ` |
 | `plaquette_action(U)` | Wilson gauge action |
 | `gauge_force(U)` | su(N)-valued force |
@@ -89,6 +102,11 @@ implementations. CG only sees `A(x)`.
 Device placement, batching, DMA, PCIe, CAN, multi-card, physical MetaField
 nodes. Physics stays clean above this layer.
 
+### Adjacent — Duck
+
+Not a sixth operator layer. A hypothesis machine with its own constitution
+(`docs/DUCK.md`). It consumes Layers 0–4. It does not version them.
+
 ---
 
 ## Hardware exposes atoms, not physics
@@ -99,10 +117,11 @@ nodes. Physics stays clean above this layer.
 
 **Do not expose (initially)**
 
-`RUN_HMC()`
+`RUN_HMC()` · `DUCK_PROVE()`
 
 The host composes trajectories. Silicon only understands the operator vocabulary.
-That is what makes repurposed accelerators viable.
+That is what makes repurposed accelerators viable. The Duck composes experiments
+the same way: out of atoms, not out of a “solve Millennium” opcode.
 
 ---
 
@@ -130,8 +149,9 @@ fixed-point storage with higher-precision residual accumulation for CG.
 4. Plaquette + gauge force
 5. Host-orchestrated HMC using accelerated operators
 6. Optional: push more of the leapfrog onto device
+7. Optional, non-blocking: point a Duck body at plaquette / Wilson correlators
 
-CG is the first serious accelerator benchmark — not full HMC.
+CG is the first serious accelerator benchmark — not full HMC, and not RH.
 
 ---
 
@@ -158,3 +178,4 @@ r1 = mf.solve(...)
 ```
 
 Silicon is replaceable. FPGA is replaceable. The MetaField operator language is not.
+The Duck is replaceable too. The verifier is not.
