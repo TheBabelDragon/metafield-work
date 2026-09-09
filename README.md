@@ -3,25 +3,25 @@
 **MetaField defines the mathematics. Backends implement the operators.**
 
 Wilson–Dirac was the first frozen instruction. Reduction, Plaquette, and
-Gauge-force are now frozen the same way — later was right now.
+Gauge-force are frozen the same way.
 
 ```
 MetaField Operator ABI family
 │
-├── Wilson–Dirac ABI v1     🔒 IMMUTABLE
-├── Reduction ABI v1        🔒 IMMUTABLE
-├── Plaquette ABI v1        🔒 IMMUTABLE
-└── Gauge-force ABI v1      🔒 IMMUTABLE
+├── Wilson–Dirac ABI v1     🔒 IMMUTABLE   docs/WILSON_DIRAC_ABI.md
+├── Reduction ABI v1        🔒 IMMUTABLE   docs/REDUCTION_ABI.md
+├── Plaquette ABI v1        🔒 IMMUTABLE   docs/PLAQUETTE_ABI.md
+└── Gauge-force ABI v1      🔒 IMMUTABLE   docs/GAUGE_FORCE_ABI.md
 ```
 
-See [`docs/FOUNDATION.md`](docs/FOUNDATION.md).
+Map: [`docs/FOUNDATION.md`](docs/FOUNDATION.md) · language: [`docs/OPERATOR_LANGUAGE.md`](docs/OPERATOR_LANGUAGE.md) · plan: [`docs/FIELD_PLAN.md`](docs/FIELD_PLAN.md)
 
-| ABI | Contract |
-|-----|----------|
-| [Wilson–Dirac](docs/WILSON_DIRAC_ABI.md) | `D_W ψ`, `D† = γ₅ D γ₅`, `Q = D†D` |
-| [Reduction](docs/REDUCTION_ABI.md) | `⟨a,b⟩`, `‖a‖`, `axpy` |
-| [Plaquette](docs/PLAQUETTE_ABI.md) | `S_G = β Σ (1 − ReTr P / N)` |
-| [Gauge-force](docs/GAUGE_FORCE_ABI.md) | `F = −(β/N) proj_su(N)(U V)` |
+| ABI | Contract | Tests |
+|-----|----------|-------|
+| Wilson–Dirac | `D_W ψ`, `D† = γ₅ D γ₅`, `Q = D†D` | `tests/operator/test_wilson_abi.py`, `test_goldens.py` |
+| Reduction | `⟨a,b⟩`, `‖a‖`, `axpy` | `tests/operator/test_reduction_abi.py` |
+| Plaquette | `S_G = β Σ (1 − ReTr P / N)` | `tests/operator/test_plaquette_abi.py` |
+| Gauge-force | `F = −(β/N) proj_su(N)(U V)` | `tests/operator/test_gauge_force_abi.py` |
 
 ## Quick start
 
@@ -32,15 +32,18 @@ PYTHONPATH=. python -m pytest tests/operator -q
 
 ## Constitution
 
-`tests/operator/goldens/` is the compliance boundary.
+`tests/operator/goldens/` is the compliance boundary. See that folder's [README](tests/operator/goldens/README.md).
 
 ```bash
-# Wilson–Dirac tensors (existing)
+# Wilson–Dirac tensors (seed-locked)
 PYTHONPATH=. python scripts/generate_goldens.py
-# Reduction / Plaquette / Gauge-force tensors
-PYTHONPATH=. python scripts/generate_family_goldens.py
-# then: git add tests/operator/goldens && commit
+git add tests/operator/goldens && git commit
 ```
+
+Family goldens (Reduction / Plaquette / Gauge-force) reuse the same L2/L4 ×
+cold/random/boundary seeds. Identity tests already run without those npz
+files; tensor replay starts once the family corpora are committed under
+`tests/operator/goldens/{reduction,plaquette,gauge_force}_v1/`.
 
 | Check | Gate |
 |-------|------|
@@ -48,9 +51,11 @@ PYTHONPATH=. python scripts/generate_family_goldens.py
 | γ₅-hermiticity | residual |
 | `Q = D†D` hermiticity | residual |
 | CG trajectory | residual history |
-| `⟨a,b⟩` / `‖a‖` / `axpy` | scalar / field error vs oracle |
-| `S_G`, mean plaquette | absolute error vs oracle |
-| gauge force `F` | su(N) identities + relative error |
+| `⟨a,b⟩` / `‖a‖` / `axpy` | conjugate symmetry + oracle match |
+| `S_G`, mean plaquette | unit-gauge zero action; oracle match |
+| gauge force `F` | su(N) identities; staple ≡ autograd |
+
+Tolerances: [`tests/operator/tolerances.json`](tests/operator/tolerances.json).
 
 ## Frozen vs experimental
 
